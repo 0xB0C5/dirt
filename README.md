@@ -15,11 +15,11 @@ Transduction expressions have the following syntax:
 
 - `-c` matches the character `c` and outputs the empty string.
 
-- `X*` matches `X` 0 or more times, outputting `X`'s output that many times.
+- `X*` matches `X` 0 or more times, outputting `X`'s output that many times. Highest precedence.
 
 - `XY` matches the concatenation of `X` and `Y`, outputting their concatenated outputs.
 
-- `M|N` matches the union of `M` and `N`. Outputs the output of whichever side was matched.
+- `M|N` matches the union of `M` and `N`. Outputs the output of whichever side was matched. Lowest precedence.
 
 - `(` and `)` override precedence.
 
