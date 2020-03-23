@@ -9,17 +9,17 @@ namespace dirt
     {
         static void Main(string[] args)
         {
-            if (args.Length < 2)
+            if (args.Length < 1)
             {
                 Console.Error.WriteLine("No source file specified.");
                 return;
             }
 
-            string programPath = args[1];
+            string programPath = args[0];
 
             bool verbose = false;
 
-            for (int i = 2; i < args.Length; i++)
+            for (int i = 1; i < args.Length; i++)
             {
                 switch (args[i])
                 {
@@ -60,9 +60,14 @@ namespace dirt
             {
                 var output = transducer.GetMinimumOutput(input);
 
+                if (output == null || verbose)
+                {
+                    outStream.Write(input, 0, input.Length);
+                    outStream.Write(new byte[] { (byte)'\n', (byte)'\n' });
+                }
+
                 if (output == null)
                 {
-                    outStream.Write(output, 0, output.Length);
                     break;
                 }
 

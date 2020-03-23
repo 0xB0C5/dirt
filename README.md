@@ -3,7 +3,7 @@
 The "irt" in "dirt" stands for "iterated regular transduction". The "d" stands for "don't use this for serious programming".
 
 Language Overview
-=================
+-----------------
 
 dirt uses transduction expressions which are similar to regular expressions, except they are able to produce output.
 
@@ -36,3 +36,18 @@ As an example, here's a program which removes leading zeros from a number:
 The `-0` matches the first leading 0 but doesn't output it, then the rest matches and outputs the rest of the digits.
 At each iteration, the first leading 0 is removed.
 When all leading zeros have been removed, the expression no longer matches the number, so execution stops and the number is written to stdout.
+
+Usage
+-----
+
+Build with `dotnet build` (I think?).
+
+Run with `dirt [source-filename] < [input-filename]`. Use `-v` for verbose mode, where it prints every transduction.
+
+
+brainbool interpreter
+---------------------
+
+Here's a brainbool interpreter in dirt. Give it a brainbool program in the format `^[program]#^0#[input]#` (where `input` is a string of `0`s and `1`s) and it will change it to `[program]^#[memory]##[output]`
+
+    ([|]|<|>|,|.|\+)*(|-^.+^([|]|<|>|,|.|\+)*#(0|1)*^(0(0|1)*#(0|1)*#(0|1)*+0|1(0|1)*#(0|1)*#(0|1)*+1)|-^(\++^([|]|<|>|,|.|\+)*#(0|1)*^(-0+1|-1+0)|,+^([|]|<|>|,|.|\+)*#(0|1)*^((0|+0-1)(0|1)*#-0|(1|+1-0)(0|1)*#-1)|>+^([|]|<|>|,|.|\+)*#(0|1)*-^(0|1)+^((0|1)(0|1)*|+0)#|<+^([|]|<|>|,|.|\+)*#(0|1)*(-0^+0|-1^+1)|[+^([|]|<|>|,|.|\+)*#(0|1)*^1|[+}([|]|<|>|,|.|\+)*#(0|1)*^0)(0|1|#)*|(+[}}*+}-[|+]-}}}*-]|-}]+^|-^+{]|-]{{*+{+]|-[-{{{*+[|+^[-{|(+<}}*-<|+>}}*->|+,}}*-,|+.}}*-.|++}}*-+)|(-<{{*+<|->{{*+>|-,{{*+,|-.{{*+.|-+{{*++))([|]|<|>|,|.|\+|0|1|#|^)*)
