@@ -303,14 +303,14 @@ namespace dirt
             };
         }
 
-        public static Transducer FromSyntaxTree(SyntaxTree tree)
+        public static Transducer FromSyntaxTree(Expression tree)
         {
             switch (tree)
             {
-                case SyntaxTree.Empty _:
+                case Expression.Empty _:
                     return Empty();
 
-                case SyntaxTree.IO io:
+                case Expression.IO io:
                     if (io.In && io.Out)
                     {
                         return InOut(io.Byte);
@@ -328,14 +328,17 @@ namespace dirt
                         return Empty();
                     }
 
-                case SyntaxTree.Concat concat:
+                case Expression.Concat concat:
                     return Concat(FromSyntaxTree(concat.Left), FromSyntaxTree(concat.Right));
 
-                case SyntaxTree.Union union:
+                case Expression.Union union:
                     return Union(FromSyntaxTree(union.Left), FromSyntaxTree(union.Right));
 
-                case SyntaxTree.Star star:
+                case Expression.Star star:
                     return Star(FromSyntaxTree(star.Sub));
+
+                case Expression.Nothing _:
+                    return new Transducer { _states = new State[0] };
             }
 
             throw new Exception("Internal error: unknown SyntaxTree type " + tree.GetType().FullName);

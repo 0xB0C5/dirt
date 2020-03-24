@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,9 +15,9 @@ namespace dirt
             _code = code;
         }
 
-        public SyntaxTree Parse()
+        public Expression Parse()
         {
-            SyntaxTree tree = ParseToParenOrEnd();
+            Expression tree = ParseToParenOrEnd();
 
             if (_codeIndex != _code.Length)
             {
@@ -26,18 +27,18 @@ namespace dirt
             return tree;
         }
 
-        private SyntaxTree ParseToParenOrEnd()
+        private Expression ParseToParenOrEnd()
         {
-            SyntaxTree unionTree = null;
-            SyntaxTree concatTree = null;
+            Expression unionTree = null;
+            Expression concatTree = null;
 
-            while (_codeIndex < _code.Length && _code[_codeIndex] != ')')
+            while (_codeIndex < _code.Length && _code[_codeIndex] != ')' && _code[_codeIndex] != '}')
             {
                 if (_code[_codeIndex] == '|')
                 {
                     _codeIndex++;
 
-                    concatTree = concatTree ?? new SyntaxTree.Empty();
+                    concatTree = concatTree ?? new Expression.Empty();
 
                     if (unionTree == null)
                     {
@@ -45,7 +46,7 @@ namespace dirt
                     }
                     else
                     {
-                        unionTree = new SyntaxTree.Union { Left = unionTree, Right = concatTree };
+                        unionTree = new Expression.Union { Left = unionTree, Right = concatTree };
                     }
 
                     concatTree = null;
@@ -62,70 +63,82 @@ namespace dirt
                     }
                     else
                     {
-                        concatTree = new SyntaxTree.Concat { Left = concatTree, Right = term };
+                        concatTree = new Expression.Concat { Left = concatTree, Right = term };
                     }
                 }
             }
 
-            concatTree = concatTree ?? new SyntaxTree.Empty();
+            concatTree = concatTree ?? new Expression.Empty();
 
             if (unionTree == null)
             {
                 return concatTree;
             }
 
-            unionTree = new SyntaxTree.Union { Left = unionTree, Right = concatTree };
+            unionTree = new Expression.Union { Left = unionTree, Right = concatTree };
 
             return unionTree;
         }
 
-        private SyntaxTree ParseTerm()
+        private Expression ParseTerm()
         {
-            SyntaxTree curTree = ParseUnstarredTerm();
+            Expression curTree = ParseUnstarredTerm();
 
             while (_codeIndex < _code.Length && _code[_codeIndex] == (byte)'*')
             {
                 _codeIndex++;
-                curTree = new SyntaxTree.Star { Sub = curTree };
+                curTree = new Expression.Star { Sub = curTree };
             }
 
             return curTree;
         }
 
-        private SyntaxTree ParseUnstarredTerm()
+        private Expression ParseUnstarredTerm()
         {
             var readByte = Read();
 
             switch (readByte)
             {
                 case (byte)'\\':
-                    return new SyntaxTree.IO
+                    return new Expression.IO
                     {
                         In = true,
                         Out = true,
                         Byte = Read(),
                     };
 
-                case (byte)'+':
-                    return new SyntaxTree.IO
+                case (byte)'\'':
+                    return new Expression.IO
                     {
                         In = false,
                         Out = true,
                         Byte = Read(),
                     };
 
-                case (byte)'-':
-                    return new SyntaxTree.IO
+                case (byte)'`':
+                    return new Expression.IO
                     {
                         In = true,
                         Out = false,
                         Byte = Read(),
                     };
 
+                case (byte)'"':
+                    return ReadQuotedOutput();
+
                 case (byte)'(':
-                    var tree = ParseToParenOrEnd();
-                    Read();
-                    return tree;
+                    {
+                        var tree = ParseToParenOrEnd();
+                        if (Read() != ')') Boom("Expected close paren.");
+                        return tree;
+                    }
+
+                case (byte)'{':
+                    {
+                        var tree = ParseToParenOrEnd();
+                        if (Read() != '}') Boom("Expected close brace.");
+                        return Silenced(tree);
+                    }
 
                 case (byte)'*':
                     Boom("Star not applied to anything.");
@@ -136,8 +149,11 @@ namespace dirt
                     Boom("Internal Error: Found union when parsing unstarred term.");
                     return null;
 
+                case (byte)'[':
+                    return ReadCharSet();
+
                 default:
-                    return new SyntaxTree.IO
+                    return new Expression.IO
                     {
                         In = true,
                         Out = true,
@@ -146,11 +162,165 @@ namespace dirt
             }
         }
 
-        private byte Read()
+        private Expression ReadQuotedOutput()
+        {
+            Expression expression = null;
+
+            while (Peek() != '"')
+            {
+                var b = Read();
+
+                if (b == '\\')
+                {
+                    b = Read();
+                }
+
+                var io = new Expression.IO { Byte = b, In = false, Out = true };
+
+                if (expression == null)
+                {
+                    expression = io;
+                }
+                else
+                {
+                    expression = new Expression.Concat
+                    {
+                        Left = expression,
+                        Right = io,
+                    };
+                }
+            }
+
+            _codeIndex++;
+
+            return expression;
+        }
+
+        private Expression Silenced(Expression tree)
+        {
+            switch (tree)
+            {
+                case Expression.IO io:
+                    if (io.In)
+                    {
+                        return new Expression.IO
+                        {
+                            Byte = io.Byte,
+                            In = true,
+                            Out = false,
+                        };
+                    }
+                    else
+                    {
+                        return new Expression.Empty();
+                    }
+
+                case Expression.Empty empty:
+                    return empty;
+
+                case Expression.Star star:
+                    return new Expression.Star { Sub = Silenced(star.Sub) };
+
+                case Expression.Concat concat:
+                    return new Expression.Concat { Left = Silenced(concat.Left), Right = Silenced(concat.Right) };
+
+                case Expression.Union union:
+                    return new Expression.Union { Left = Silenced(union.Left), Right = Silenced(union.Right) };
+
+                case Expression.Nothing nothing:
+                    return nothing;
+            }
+
+            Boom("Internal error : Unknown expression type " + tree.GetType().FullName);
+            return null;
+        }
+
+        private Expression ReadCharSet()
+        {
+            bool inverted = false;
+
+            if (Peek() == '^')
+            {
+                inverted = true;
+                _codeIndex++;
+            }
+
+            BitArray bits = new BitArray(256, false);
+
+            byte? prevB = null;
+
+            while (Peek() != ']')
+            {
+                byte b = Read();
+
+                if (b == '-' && prevB.HasValue && Peek() != ']')
+                {
+                    byte high = Read();
+
+                    for (byte i = prevB.Value; ; i++)
+                    {
+                        bits.Set(i, true);
+
+                        if (i == high) break;
+                    }
+
+                    continue;
+                }
+
+                if (b == '\\')
+                {
+                    b = Read();
+                }
+
+                bits.Set(b, true);
+
+                prevB = b;
+            }
+
+            _codeIndex++;
+
+            if (inverted) bits = bits.Not();
+
+            Expression expression = null;
+
+            for (int i = 0; i < 256; i++)
+            {
+                if (bits.Get(i))
+                {
+                    var io = new Expression.IO { Byte = (byte)i, In = true, Out = true };
+
+                    if (expression == null)
+                    {
+                        expression = io;
+                    }
+                    else
+                    {
+                        expression = new Expression.Union
+                        {
+                            Left = expression,
+                            Right = io,
+                        };
+                    }
+                }
+            }
+
+            if (expression == null) expression = new Expression.Nothing();
+
+            return expression;
+        }
+
+        private byte Peek()
         {
             if (_codeIndex >= _code.Length) Boom("Unexpected end of code.");
 
-            return _code[_codeIndex++];
+            return _code[_codeIndex];
+        }
+
+        private byte Read()
+        {
+            var b = Peek();
+            _codeIndex++;
+            return b;
         }
 
         private void Boom(string message)

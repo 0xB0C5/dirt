@@ -4,14 +4,14 @@ using System.Text;
 
 namespace dirt
 {
-    public class SyntaxTree
+    public class Expression
     {
-        private SyntaxTree() { }
+        private Expression() { }
 
-        public sealed class Concat : SyntaxTree
+        public sealed class Concat : Expression
         {
-            public SyntaxTree Left { get; set; }
-            public SyntaxTree Right { get; set; }
+            public Expression Left { get; set; }
+            public Expression Right { get; set; }
 
             public override string ToString()
             {
@@ -19,10 +19,10 @@ namespace dirt
             }
         }
 
-        public sealed class Union : SyntaxTree
+        public sealed class Union : Expression
         {
-            public SyntaxTree Left { get; set; }
-            public SyntaxTree Right { get; set; }
+            public Expression Left { get; set; }
+            public Expression Right { get; set; }
 
             public override string ToString()
             {
@@ -30,9 +30,9 @@ namespace dirt
             }
         }
 
-        public sealed class Star : SyntaxTree
+        public sealed class Star : Expression
         {
-            public SyntaxTree Sub { get; set; }
+            public Expression Sub { get; set; }
 
             public override string ToString()
             {
@@ -40,9 +40,10 @@ namespace dirt
             }
         }
 
-        public sealed class IO : SyntaxTree
+        public sealed class IO : Expression
         {
             public bool In { get; set; }
+
             public bool Out { get; set; }
 
             public byte Byte { get; set; }
@@ -57,18 +58,30 @@ namespace dirt
                 {
                     return "-" + ((char)Byte).ToString();
                 }
-                else
+                else if (Out)
                 {
                     return "+" + ((char)Byte).ToString();
+                }
+                else
+                {
+                    return "()";
                 }
             }
         }
 
-        public sealed class Empty : SyntaxTree
+        public sealed class Empty : Expression
         {
             public override string ToString()
             {
                 return "()";
+            }
+        }
+
+        public sealed class Nothing : Expression
+        {
+            public override string ToString()
+            {
+                return "!";
             }
         }
     }
