@@ -169,6 +169,9 @@ namespace dirt
                 case (byte)'[':
                     return ReadCharSet();
 
+                case (byte)'.':
+                    return CharSetToExpression(new BitArray(256, true));
+
                 default:
                     return new Expression.IO
                     {
@@ -298,11 +301,16 @@ namespace dirt
 
             if (inverted) bits = bits.Not();
 
+            return CharSetToExpression(bits);
+        }
+
+        private Expression CharSetToExpression(BitArray charSet)
+        {
             Expression expression = null;
 
-            for (int i = 0; i < 256; i++)
+            for (int i = 0; i < charSet.Length; i++)
             {
-                if (bits.Get(i))
+                if (charSet.Get(i))
                 {
                     var io = new Expression.IO { Byte = (byte)i, In = true, Out = true };
 

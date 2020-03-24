@@ -11,6 +11,8 @@ Transduction expressions have the following regex syntax:
 
 - Any non-special character matches itself.
 
+- `.` matches any 1 character.
+
 - `X*` matches `X` 0 or more times.
 
 - `X+` matches `X` 1 or more times.
