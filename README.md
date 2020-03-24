@@ -54,7 +54,9 @@ Usage
 
 Build with `dotnet build` (I think?).
 
-Run with `dirt [source-filename] < [input-filename]`. Use `-v` for verbose mode, where it prints every transduction.
+Run with `dirt [source-filename] < [input-filename]` or `dirt [source-filename] -i "[input]"`.
+
+Use `-v` for verbose mode, where it prints every transduction.
 
 # Examples
 
@@ -63,7 +65,7 @@ Hello World
 
 Here's a Hello World program
 
-    `"Hello, World!"`
+    "Hello, World!"
 
 
 brainbool interpreter
