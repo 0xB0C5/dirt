@@ -79,7 +79,7 @@ namespace dirt
                 if (output == null || verbose)
                 {
                     outStream.Write(input, 0, input.Length);
-                    outStream.Write(new byte[] { (byte)'\n', (byte)'\n' });
+                    outStream.Write(new byte[] { (byte)'\n' });
                 }
 
                 if (output == null)
