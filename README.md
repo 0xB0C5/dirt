@@ -7,35 +7,45 @@ Language Overview
 
 dirt uses transduction expressions which are similar to regular expressions, except they are able to produce output.
 
-Transduction expressions have the following syntax:
+Transduction expressions have the following regex syntax:
 
-- Any non-special character `c` matches `c` and outputs `c`.
+- Any non-special character matches itself.
 
-- `+c` matches the empty string and outputs `c`
+- `X*` matches `X` 0 or more times.
 
-- `-c` matches the character `c` and outputs the empty string.
+- `X+` matches `X` 1 or more times.
 
-- `X*` matches `X` 0 or more times, outputting `X`'s output that many times. Highest precedence.
+- `XY` matches the concatenation of `X` and `Y`. Lower precedence than `*` and `+`.
 
-- `XY` matches the concatenation of `X` and `Y`, outputting their concatenated outputs.
-
-- `M|N` matches the union of `M` and `N`. Outputs the output of whichever side was matched. Lowest precedence.
+- `X|Y` matches the union of `X` and `Y`. Lower precedence than concatenation.
 
 - `(` and `)` override precedence.
 
-- `\c` escapes a character - matches and outputs `c`.
+- `\` escapes the next character.
+
+- `[...]` matches one of the character between the `[]`s.
+
+- `[a-b]` matches character in the range from `a` to `b`. Can have multiple ranges and additional non-range characters (e.g. `[a-zA-Z0-9_]`)
+
+- `[^...]` matches any character *not* included between the `[]`s
+
+Any expression using only the above syntax, when run on a string which it matches, will output the same string.
+
+To allow different output than the input string, the following syntax can be used:
+
+- `'c` matches the empty string and outputs a single character `c` when matched. Special characters don't need to be escaped (e.g. `'\` outputs a backslash).
+
+- `"..."` matches the empty string and outputs everything between the 2 `"` characters when matched. `"`s and `\`s inside need to be escaped.
+
+- `` `c `` matches a single character `c` and outputs nothing. Special characters don't need to be escaped.
+
+- `{X}` matches whatever `X` matches but outputs nothing.
 
 In cases where the input can be matched multiple ways, dirt chooses whichever way produces the least output.
 
-A dirt program is just a transduction expression. dirt reads its input from stdin, then repeatedly transduces it doesn't match, then outputs it to stdout.
+A dirt program is just a transduction expression. dirt reads its input from stdin, then repeatedly transduces it until it doesn't match, then outputs it to stdout.
 
-As an example, here's a program which removes leading zeros from a number:
-
-    -0(0|1|2|3|4|5|6|7|8|9)*
-
-The `-0` matches the first leading 0 but doesn't output it, then the rest matches and outputs the rest of the digits.
-At each iteration, the first leading 0 is removed.
-When all leading zeros have been removed, the expression no longer matches the number, so execution stops and the number is written to stdout.
+Note: by "character" I mean "byte". Non-printable characters are perfectly valid in a dirt program.
 
 Usage
 -----
@@ -44,10 +54,17 @@ Build with `dotnet build` (I think?).
 
 Run with `dirt [source-filename] < [input-filename]`. Use `-v` for verbose mode, where it prints every transduction.
 
+# Examples
+
+Hello World
+-----------
+
+Here's a Hello World program
+
+    `"Hello, World!"`
+
 
 brainbool interpreter
 ---------------------
 
-Here's a brainbool interpreter in dirt. Give it a brainbool program in the format `^[program]#^0#[input]#` (where `input` is a string of `0`s and `1`s) and it will change it to `[program]^#[memory]##[output]`
-
-    ([|]|<|>|,|.|\+)*(|-^.+^([|]|<|>|,|.|\+)*#(0|1)*^(0(0|1)*#(0|1)*#(0|1)*+0|1(0|1)*#(0|1)*#(0|1)*+1)|-^(\++^([|]|<|>|,|.|\+)*#(0|1)*^(-0+1|-1+0)|,+^([|]|<|>|,|.|\+)*#(0|1)*^((0|+0-1)(0|1)*#-0|(1|+1-0)(0|1)*#-1)|>+^([|]|<|>|,|.|\+)*#(0|1)*-^(0|1)+^((0|1)(0|1)*|+0)#|<+^([|]|<|>|,|.|\+)*#(^+0|(0|1)*(-0^+0|-1^+1))|[+^([|]|<|>|,|.|\+)*#(0|1)*^1|[+}([|]|<|>|,|.|\+)*#(0|1)*^0)(0|1|#)*|(+[}}*+}-[|+]-}}}*-]|-}]+^|-^+{]|-]{{*+{+]|-[-{{{*+[|+^[-{|(+<}}*-<|+>}}*->|+,}}*-,|+.}}*-.|++}}*-+)|(-<{{*+<|->{{*+>|-,{{*+,|-.{{*+.|-+{{*++))([|]|<|>|,|.|\+|0|1|#|^)*)
+I had a working brainbool interpreter but I changed the syntax of dirt and now it doesn't work.
