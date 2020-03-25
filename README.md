@@ -68,7 +68,9 @@ Here's a Hello World program
     "Hello, World!"
 
 
-brainbool interpreter
+brainfuck interpreter
 ---------------------
 
-I had a working brainbool interpreter but I changed the syntax of dirt and now it doesn't work.
+Here's a brainfuck interpreter in 489 characters.
+
+    '@[^@]*"# @00000000 "(#[^#]*|"#")'#|[^R]*(('<R+`<|'>R+`>|'-R+`-|'+R+`+|'.R+`.|',R+`,|'['RR+`[|']`RR+`])|`R\]'@).*|.*((`<L+'<|`>L+'>|`-L+'-|`+L+'+|`.L+'.|`,L+',|`[`LL+'[|`]'LL+'])|'@\[`L)[^L]*|[^x]*(`x('0[^#]*#`0|'1[^#]*#`1)|(`x'0)+ .*##).*|.*`I",@"[^x]*|.*`o(0'o.*'0|1'o.*'1| .*)|.*`O".@"[^o]*|.*`@(-'@.*@([^ ]*`1'0|)(`0'1)* |\+'@.*@([^ ]*`0'1|)(`1'0)* |<'@.*#( @"00000000 "|.* '@[^ ]+ `@)|>'@.*`@[^ ]+ '@("00000000 "|[^#]+)#|\['@.*@([^ ]*1)|'L\]|\['R.*@0* |`,'I.*@({0|1}'x)* |`.'O.*@'o).*
