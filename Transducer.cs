@@ -305,57 +305,157 @@ namespace dirt
 
         public static Transducer FromSyntaxTree(Expression tree)
         {
+            Transducer transducer;
+
             switch (tree)
             {
                 case Expression.Empty _:
-                    return Empty();
+                    transducer = Empty();
+                    break;
 
                 case Expression.IO io:
                     if (io.In && io.Out)
                     {
-                        return InOut(io.Byte);
+                        transducer = InOut(io.Byte);
                     }
                     else if (io.In)
                     {
-                        return In(io.Byte);
+                        transducer = In(io.Byte);
                     }
                     else if (io.Out)
                     {
-                        return Out(io.Byte);
+                        transducer = Out(io.Byte);
                     }
                     else
                     {
-                        return Empty();
+                        transducer = Empty();
                     }
+                    break;
 
                 case Expression.Concat concat:
-                    return Concat(FromSyntaxTree(concat.Left), FromSyntaxTree(concat.Right));
+                    transducer = Concat(FromSyntaxTree(concat.Left), FromSyntaxTree(concat.Right));
+                    break;
 
                 case Expression.Union union:
-                    return Union(FromSyntaxTree(union.Left), FromSyntaxTree(union.Right));
+                    transducer = Union(FromSyntaxTree(union.Left), FromSyntaxTree(union.Right));
+                    break;
 
                 case Expression.Star star:
-                    return Star(FromSyntaxTree(star.Sub));
+                    transducer = Star(FromSyntaxTree(star.Sub));
+                    break;
 
                 case Expression.Nothing _:
-                    return new Transducer { _states = new State[0] };
+                    transducer = new Transducer { _states = new State[0] };
+                    break;
+
+                default:
+                    throw new Exception("Internal error: unknown SyntaxTree type " + tree.GetType().FullName);
             }
 
-            throw new Exception("Internal error: unknown SyntaxTree type " + tree.GetType().FullName);
+            transducer.RemoveUselessStates();
+
+            return transducer;
+        }
+
+        private void RemoveUselessStates()
+        {
+            // TODO : this is too slow.
+            var reachableStates = new HashSet<int>();
+
+            for (int i = 0; i < _states.Length; i++)
+            {
+                if (_states[i].IsAccept)
+                {
+                    reachableStates.Add(i);
+                }
+            }
+
+            var freshStates = new HashSet<int>(reachableStates);
+
+            while (freshStates.Count > 0)
+            {
+                var newFreshStates = new HashSet<int>();
+
+                for (int i = 0; i < _states.Length; i++)
+                {
+                    if (reachableStates.Contains(i)) continue;
+
+                    foreach (var transitions in _states[i].Transitions.Values)
+                    {
+                        foreach (var transition in transitions)
+                        {
+                            if (reachableStates.Contains(transition.NextState))
+                            {
+                                reachableStates.Add(i);
+                                newFreshStates.Add(i);
+                            }
+                        }
+                    }
+                }
+
+                freshStates = newFreshStates;
+            }
+
+            int[] stateMap = new int[_states.Length];
+
+            Array.Fill(stateMap, -1);
+
+            int newStateIndex = 0;
+
+            foreach (var state in reachableStates.OrderBy(i => i))
+            {
+                stateMap[state] = newStateIndex++;
+            }
+
+            var newStates = new State[reachableStates.Count];
+
+            for (int oldState = 0; oldState < _states.Length; oldState++)
+            {
+                int newState = stateMap[oldState];
+
+                if (newState == -1) continue;
+
+                newStates[newState] = new State
+                {
+                    StartOutput = _states[oldState].StartOutput,
+                    IsAccept = _states[oldState].IsAccept,
+                    Transitions = _states[oldState].Transitions
+                        .ToDictionary(
+                            pair => pair.Key,
+                            pair => pair.Value
+                                .Where(transition => stateMap[transition.NextState] != -1)
+                                .Select(transition => new Transition
+                                {
+                                    NextState = stateMap[transition.NextState],
+                                    Output = transition.Output
+                                })
+                                .ToArray()
+                        ),
+                };
+            }
+
+            _states = newStates;
         }
 
         public byte[] GetMinimumOutput(byte[] input)
         {
-            byte[][] stateOutputs = new byte[_states.Length][];
+            LinkedByteArrayListNode[] stateOutputs = new LinkedByteArrayListNode[_states.Length];
 
             for (int i = 0; i < _states.Length; i++)
             {
-                stateOutputs[i] = _states[i].StartOutput;
+                if (_states[i].StartOutput != null)
+                {
+                    stateOutputs[i] = new LinkedByteArrayListNode
+                    {
+                        Output = _states[i].StartOutput,
+                        ByteCount = _states[i].StartOutput.Length,
+                    };
+                }
             }
 
             foreach (byte b in input)
             {
-                byte[][] newStateOutputs = new byte[_states.Length][];
+                LinkedByteArrayListNode[] newStateOutputs = new LinkedByteArrayListNode[_states.Length];
 
                 for (int i = 0; i < _states.Length; i++)
                 {
@@ -370,7 +470,12 @@ namespace dirt
                         {
                             var dest = transition.NextState;
 
-                            var newOutput = stateOutputs[i].Concat(transition.Output).ToArray();
+                            var newOutput = new LinkedByteArrayListNode
+                            {
+                                Output = transition.Output,
+                                PrevNode = stateOutputs[i],
+                                ByteCount = stateOutputs[i].ByteCount + transition.Output.Length,
+                            };
 
                             if (newStateOutputs[dest] == null
                                 || CompareOutputs(newStateOutputs[dest], newOutput) > 0)
@@ -384,35 +489,48 @@ namespace dirt
                 stateOutputs = newStateOutputs;
             }
 
-            byte[] output = null;
+            LinkedByteArrayListNode outputNode = null;
             for (int i = 0; i < _states.Length; i++)
             {
                 if (_states[i].IsAccept && stateOutputs[i] != null)
                 {
-                    if (output == null || CompareOutputs(output, stateOutputs[i]) > 0)
+                    if (outputNode == null || CompareOutputs(outputNode, stateOutputs[i]) > 0)
                     {
-                        output = stateOutputs[i];
+                        outputNode = stateOutputs[i];
                     }
                 }
+            }
+
+            if (outputNode == null)
+            {
+                return null;
+            }
+
+            byte[] output = new byte[outputNode.ByteCount];
+            int outputIndex = output.Length;
+            while (outputNode != null)
+            {
+                outputIndex -= outputNode.Output.Length;
+                Array.Copy(outputNode.Output, 0, output, outputIndex, outputNode.Output.Length);
+                outputNode = outputNode.PrevNode;
+            }
+
+            if (outputIndex != 0)
+            {
+                throw new Exception("Internal error: ByteCount of LinkedByteArrayListNode was wrong?");
             }
 
             return output;
         }
         
-        private static int CompareOutputs(byte[] a, byte[] b)
+        private static int CompareOutputs(LinkedByteArrayListNode a, LinkedByteArrayListNode b)
         {
-            if (a.Length != b.Length)
+            if (a.ByteCount != b.ByteCount)
             {
-                return a.Length.CompareTo(b.Length);
+                return a.ByteCount.CompareTo(b.ByteCount);
             }
 
-            for (int i = 0; i < a.Length; i++)
-            {
-                if (a[i] != b[i])
-                {
-                    return a[i].CompareTo(b[i]);
-                }
-            }
+            // TODO : implement lexicographical ordering.
 
             return 0;
         }
@@ -428,6 +546,13 @@ namespace dirt
         {
             public byte[] Output;
             public int NextState;
+        }
+
+        private class LinkedByteArrayListNode
+        {
+            public LinkedByteArrayListNode PrevNode;
+            public byte[] Output;
+            public int ByteCount;
         }
     }
 }
