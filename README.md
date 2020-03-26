@@ -17,7 +17,9 @@ Transduction expressions have the following regex syntax:
 
 - `X+` matches `X` 1 or more times.
 
-- `XY` matches the concatenation of `X` and `Y`. Lower precedence than `*` and `+`.
+- `X?` matches `X` 0 or 1 times.
+
+- `XY` matches the concatenation of `X` and `Y`. Lower precedence than `*`, `+` and `?`.
 
 - `X|Y` matches the union of `X` and `Y`. Lower precedence than concatenation.
 

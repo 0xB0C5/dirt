@@ -84,27 +84,39 @@ namespace dirt
         {
             Expression curTree = ParseUnstarredTerm();
 
+            bool shouldContinue = true;
             while (_codeIndex < _code.Length)
             {
-                bool isStar = _code[_codeIndex] == (byte)'*';
-                bool isPlus = _code[_codeIndex] == (byte)'+';
+                switch (_code[_codeIndex])
+                {
+                    case (byte)'*':
+                        curTree = new Expression.Star { Sub = curTree };
+                        break;
 
-                if (!isStar && !isPlus) break;
+                    case (byte)'+':
+                        curTree = new Expression.Concat
+                        {
+                            Left = curTree,
+                            Right = new Expression.Star { Sub = curTree },
+                        };
+                        break;
+
+                    case (byte)'?':
+                        curTree = new Expression.Union
+                        {
+                            Left = new Expression.Empty(),
+                            Right = curTree,
+                        };
+                        break;
+
+                    default:
+                        shouldContinue = false;
+                        break;
+                }
+
+                if (!shouldContinue) break;
 
                 _codeIndex++;
-
-                if (isStar)
-                {
-                    curTree = new Expression.Star { Sub = curTree };
-                }
-                else
-                {
-                    curTree = new Expression.Concat
-                    {
-                        Left = curTree,
-                        Right = new Expression.Star { Sub = curTree },
-                    };
-                }
             }
 
             return curTree;
